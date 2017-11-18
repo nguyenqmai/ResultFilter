@@ -11,6 +11,7 @@ public class GeoResponse {
         political, administrative_area_level_3, administrative_area_level_2, administrative_area_level_1, country
 
     }
+
     class AddressComponent {
         private AddressType[] types;
         private String long_name;

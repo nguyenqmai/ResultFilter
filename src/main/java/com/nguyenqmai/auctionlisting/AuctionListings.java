@@ -1,8 +1,7 @@
 package com.nguyenqmai.auctionlisting;
 
-import org.apache.commons.configuration2.*;
-import org.apache.commons.configuration2.builder.FileBasedConfigurationBuilder;
-import org.apache.commons.configuration2.builder.fluent.Parameters;
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,15 +10,13 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by nguyenqmai on 6/24/2017.
@@ -27,47 +24,34 @@ import java.util.*;
 public class AuctionListings {
     private static final Logger logger = LoggerFactory.getLogger(AuctionListings.class);
 
-    private Configuration settings;
+    @Parameter(names = {"-c", "-sourceConfig"}, description = "JSON source config sets")
+    private String sourceConfigSetFilePath;
 
-    private AuctionListings(Configuration settings) {
-        this.settings = settings;
+    private AuctionListings() {
     }
 
+//    void processSingleSource(URI googleGeoURI, SourceConfigSet.SourceConfig config, Charset charset, long secondsToProcessEachRecord) throws IOException, TransformerException, URISyntaxException {
+//        String html = Utils.cleanupHtmlTag(Utils.syncRequest(config.getQuery(), charset, secondsToProcessEachRecord), Utils.REPLACEMENT_HTML_TAG);
+//        html = Utils.replaceEntities(html, Utils.getKnownEntities());
+//
+//        OutputStream rawCases = Utils.simpleTransform(new ByteArrayInputStream(html.getBytes(charset)), config.getXslt("cases"));
+//        List<CaseInformation> cases = HutchensProcessor.processHutchersCases(new InputStreamReader(new ByteArrayInputStream(rawCases.toString().getBytes(charset))));
+//
+//        for (CaseInformation _case : cases) {
+//            logger.info("Pulling GeoCode of case# {}, at address {}", _case.getCaseNumber(), _case.getFullAddress());
+//            _case.setGeoResponse(Utils.getGoogleGeoCode(googleGeoURI, _case.getFullAddress(), secondsToProcessEachRecord));
+//        }
+//    }
 
-    Map<String, SourceConfig> getSources() {
-        Map<String, SourceConfig> ret = new HashMap<>();
-        for (String source : settings.getStringArray("sources")) {
-            Configuration subs = settings.subset(source);
-            String urlStr = subs.getString("url");
+    void processAllSources() throws IOException {
+        SourceConfigSet sourceConfigSet = SourceConfigSet.fromFile(Paths.get(this.sourceConfigSetFilePath));
+        for (Map.Entry<String, SourceConfigSet.SourceConfig> pair : sourceConfigSet.getSources().entrySet()) {
+            SourceConfigSet.SourceConfig config = pair.getValue();
             try {
-                ret.put(source, new SourceConfig(new URL(urlStr), Paths.get(subs.getString("xslt"))));
-            } catch (MalformedURLException e) {
-                logger.error("Bad auction listing source {} url {}", source, urlStr, e);
-            }
-        }
-        return ret;
-    }
-
-    void processSingleSource(URL url, Path xsltFile, Charset charset, long secondsToProcessEachRecord) throws IOException, TransformerException, URISyntaxException {
-        String html = Utils.cleanupHtmlTag(Utils.wget(url, charset), Utils.REPLACEMENT_HTML_TAG);
-        html = Utils.replaceEntities(html, Utils.getKnownEntities());
-        OutputStream out = Utils.simpleTransform(new ByteArrayInputStream(html.getBytes(charset)), xsltFile);
-
-        List<CaseInformation> cases = Utils.fromHutchersSource(new InputStreamReader(new ByteArrayInputStream(out.toString().getBytes(charset))));
-
-        URI googleGeoURI = new URI(settings.getString("googleGeoCode"));
-        for (CaseInformation _case : cases) {
-            logger.info("Pulling GeoCode of case# {}, at address {}", _case.getCaseNumber(), _case.getFullAddress());
-            _case.setGeoResponse(Utils.getGoogleGeoCode(googleGeoURI, _case.getFullAddress(), secondsToProcessEachRecord));
-        }
-        int abc = 123;
-    }
-
-    void processAllSources() {
-        for (Map.Entry<String, SourceConfig> pair : getSources().entrySet()) {
-            SourceConfig config = pair.getValue();
-            try {
-                processSingleSource(config.getUrl(), config.getXsltPath(), StandardCharsets.UTF_8, 5);
+                if ("hutchens".equalsIgnoreCase(pair.getKey())) {
+                    HutchensProcessor processor = new HutchensProcessor();
+                    List<CaseInformation> cases = processor.process(config, StandardCharsets.UTF_8, 5);
+                }
             } catch (TransformerException | IOException | URISyntaxException e) {
                 logger.error("Bad transforming data from source {}", pair.getKey(), e);
             }
@@ -77,15 +61,12 @@ public class AuctionListings {
 
     public static void main(String[] args) {
         try {
-            Parameters params = new Parameters();
-            FileBasedConfigurationBuilder<FileBasedConfiguration> builder =
-                    new FileBasedConfigurationBuilder<FileBasedConfiguration>(PropertiesConfiguration.class)
-                            .configure(params.properties()
-                                    .setFileName(args[0]));
-
-            AuctionListings listings = new AuctionListings(builder.getConfiguration());
-            listings.processAllSources();
-
+            AuctionListings auctionListings = new AuctionListings();
+            JCommander.newBuilder()
+                    .addObject(auctionListings)
+                    .build()
+                    .parse(args);
+            auctionListings.processAllSources();
         } catch (Exception e) {
             e.printStackTrace();
         }

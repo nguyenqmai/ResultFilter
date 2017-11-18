@@ -21,7 +21,8 @@ public class CaseInformation {
     private String biddingNote;
     private GeoResponse geoResponse;
 
-    private CaseInformation() {}
+    private CaseInformation() {
+    }
 
     public void setGeoResponse(GeoResponse geoResponse) {
         this.geoResponse = geoResponse;
@@ -87,6 +88,7 @@ public class CaseInformation {
     static class Builder {
         private static FastDateFormat FORMATTER = FastDateFormat.getInstance("M/d/yyyy");
         private CaseInformation caseInfo;
+
         private Builder() {
             caseInfo = new CaseInformation();
         }

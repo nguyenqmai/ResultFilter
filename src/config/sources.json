@@ -1,0 +1,40 @@
+{
+  "googleGeoCode":"http://maps.google.com/maps/api/geocode/json",
+  "sources": {
+    //    "hutchens_1": {
+    //      "query": {
+    //        "uri": "https://sales.hutchenslawfirm.com/NCfcSalesList.aspx",
+    //        "method":"GET",
+    //        "form": {
+    //          "SearchButton":"Ok",
+    //          "SearchTextBox":"Union",
+    //          "SearchGroup": "CountyRadio"
+    //        }
+    //      },
+    //      "xslt": "C:/workspaces/IntelliJ-workspace/Auction-filtering/src/xslt/hutchens-cases.xslt"
+    //    },
+    "hutchens": {
+      "query": {
+        "uri": "https://sales.hutchenslawfirm.com/NCfcSalesList.aspx",
+        "method": "POST",
+        "form": {
+          "SearchTextBox": "Union",
+          "SearchGroup": {
+            "AllRadio": true,
+            "CountyRadio": false,
+            "PropertyAddressRadio": false,
+            "CityOnlyRadio": false,
+            "DateRadio": false,
+            "BidRadio": false,
+            "SPNoRadio": false
+          }
+        }
+      },
+      "xslts": {
+        "pages": "C:/workspaces/IntelliJ-workspace/Auction-filtering/src/xslt/hutchens-pages.xslt",
+        "requestform": "C:/workspaces/IntelliJ-workspace/Auction-filtering/src/xslt/hutchens-requestform.xslt",
+        "cases": "C:/workspaces/IntelliJ-workspace/Auction-filtering/src/xslt/hutchens-cases.xslt"
+      }
+    }
+  }
+}

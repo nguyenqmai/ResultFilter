@@ -4,11 +4,15 @@ import com.google.gson.Gson;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.message.BasicNameValuePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,11 +27,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
-import java.text.ParseException;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -44,6 +44,7 @@ public class Utils {
         Map<String, String> ret = new HashMap<>();
         ret.put("&copy;", "");
         ret.put("&nbsp;", "");
+        ret.put("width=", "\"width\"=");
         return ret;
     }
 
@@ -62,11 +63,42 @@ public class Utils {
         return new String(ret.toByteArray(), charset);
     }
 
+    public static String syncRequest(URI uri, Map<String, Object> formData, Charset charset, long timeToLiveSeconds) throws IOException {
+        HttpPost post = buildPostRequest(uri, formData);
+        try (CloseableHttpClient httpClient = HttpClientBuilder.create().setConnectionTimeToLive(timeToLiveSeconds, TimeUnit.SECONDS).build()) {
+            try (CloseableHttpResponse response = httpClient.execute(post)) {
+                ByteArrayOutputStream ret = new ByteArrayOutputStream();
+                response.getEntity().writeTo(ret);
+                return new String(ret.toByteArray(), charset);
+            }
+        }
+    }
+
+    static HttpPost buildPostRequest(URI uri, Map<String, Object> data) throws UnsupportedEncodingException {
+        HttpPost httpPost = new HttpPost(uri);
+
+        List<NameValuePair> params = new ArrayList<>();
+        for (Map.Entry<String, Object> pair : data.entrySet()) {
+            params.add(new BasicNameValuePair(pair.getKey(), pair.getValue().toString()));
+        }
+        httpPost.setEntity(new UrlEncodedFormEntity(params));
+        return httpPost;
+    }
+
     public static String cleanupHtmlTag(String inputHtml, String replacementHtmlTag) {
         int startTag = inputHtml.indexOf("<html");
         int closeOfStartTag = inputHtml.indexOf(">", startTag);
 
         return replacementHtmlTag + inputHtml.substring(closeOfStartTag + 1);
+    }
+
+    public static String removeElement(String inputHtml, String tag) {
+        int startTag = inputHtml.indexOf("<"+tag);
+        if (startTag < 0) {
+            return inputHtml;
+        }
+        int closeOfStartTag = inputHtml.indexOf("</" + tag + ">", startTag);
+        return inputHtml.substring(0, startTag) + inputHtml.substring(closeOfStartTag + ("</" + tag + ">").length());
     }
 
     public static String replaceEntities(String input, Map<String, String> entities) {
@@ -94,8 +126,7 @@ public class Utils {
         URIBuilder builder = new URIBuilder(service);
         builder.addParameter("address", address);
 
-        try (CloseableHttpClient httpClient = HttpClientBuilder.create().
-                setConnectionTimeToLive(timeToLiveSeconds, TimeUnit.SECONDS).build()) {
+        try (CloseableHttpClient httpClient = HttpClientBuilder.create().setConnectionTimeToLive(timeToLiveSeconds, TimeUnit.SECONDS).build()) {
             HttpGet httpGet = new HttpGet(builder.build());
             try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
                 return (new Gson()).fromJson(new InputStreamReader(response.getEntity().getContent()), GeoResponse.class);
@@ -103,22 +134,4 @@ public class Utils {
         }
     }
 
-    public static List<CaseInformation> fromHutchersSource(Reader input) throws IOException {
-        List<CaseInformation> ret = new LinkedList<>();
-        CSVParser parser = CSVFormat.RFC4180.parse(input);
-        CaseInformation.Builder builder = CaseInformation.Builder.getBuilder();
-
-        for (CSVRecord record : parser.getRecords()) {
-            ret.add(builder.setCaseNumber(record.get(0)).
-                    setSpNumber(record.get(1)).
-                    setCounty(record.get(2)).
-                    setSaleDate(record.get(3)).
-                    setStreetAddress(record.get(4)).
-                    setCountyStateZipAddress(record.get(5)).
-                    setDeedBookPage(record.get(6)).
-                    setNote(record.get(7)).
-                    build());
-        }
-        return ret;
-    }
 }
