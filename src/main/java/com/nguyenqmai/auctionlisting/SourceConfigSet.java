@@ -43,18 +43,23 @@ class SourceConfigSet {
 
     static class Query {
         private URI uri;
+        private long sleepSeconds;
         private String method;
-        private Map<String, Object> form;
+        private Map<String, String> form;
 
         public URI getUri() {
             return uri;
+        }
+
+        public long getSleepSeconds() {
+            return sleepSeconds;
         }
 
         public String getMethod() {
             return method;
         }
 
-        public Map<String, Object> getForm() {
+        public Map<String, String> getForm() {
             return form;
         }
     }

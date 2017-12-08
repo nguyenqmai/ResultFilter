@@ -16,19 +16,18 @@
     "hutchens": {
       "query": {
         "uri": "https://sales.hutchenslawfirm.com/NCfcSalesList.aspx",
+        "sleepSeconds": 20,
         "method": "POST",
         "form": {
-          "SearchTextBox": "Union",
-          "SearchGroup": {
-            "AllRadio": true,
-            "CountyRadio": false,
-            "PropertyAddressRadio": false,
-            "CityOnlyRadio": false,
-            "DateRadio": false,
-            "BidRadio": false,
-            "SPNoRadio": false
+          "SearchTextBox": "Gaston",
+//          "SearchGroup": "AllRadio"
+          "SearchGroup": "CountyRadio"
+//          "SearchGroup": "PropertyAddressRadio"
+//          "SearchGroup": "CityOnlyRadio"
+//          "SearchGroup": "DateRadio"
+//          "SearchGroup": "BidRadio"
+//          "SearchGroup": "SPNoRadio"
           }
-        }
       },
       "xslts": {
         "pages": "C:/workspaces/IntelliJ-workspace/Auction-filtering/src/xslt/hutchens-pages.xslt",

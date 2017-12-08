@@ -3,6 +3,8 @@ package com.nguyenqmai.auctionlisting;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.xml.transform.TransformerException;
 import java.io.*;
@@ -14,65 +16,118 @@ import java.util.*;
  * Created by nguyenqmai on 11/17/2017.
  */
 public class HutchensProcessor {
+    private static final Logger logger = LoggerFactory.getLogger(HutchensProcessor.class);
+
+
+    static final String SEARCH_ANY_TEXT = "";
+    static final String SEARCH_ALL = "AllRadio";
+    static final String SEARCH_TEXT_BOX = "SearchTextBox";
+    static final String SEARCH_GROUP = "SearchGroup";
+    static final String EVENT_TARGET = "__EVENTTARGET";
+    static final String COL_GROUP_ELEMENT = "colgroup";
+
+
+
+    boolean readAllCases = false;
+    Map<String, String> querySettings = new HashMap<>();
+    Map<String, String> sessionForm = new HashMap<>();
+    Set<String> processedPage = new HashSet<>();
     Queue<String> pages = new LinkedList<>();
-    Map<String, Object> sessionForm = new HashMap<>();
+    Map<String, CaseInformation> cases = new HashMap<>();
 
-    List<CaseInformation> process(SourceConfigSet.SourceConfig config, Charset charset, long secondsToProcessEachRecord) throws IOException, TransformerException, URISyntaxException {
-        List<CaseInformation> cases = new LinkedList<>();
-        boolean firstPage = true;
-        Map<String, Object> requestForm = new HashMap<>();
+    Collection<CaseInformation> getCases() {
+        return cases.values();
+    }
+
+    void process(SourceConfigSet.SourceConfig config, Charset charset, long secondsToProcessEachRecord) throws IOException, TransformerException, URISyntaxException {
+        identifyQuerySettings(config.getQuery().getForm());
+        processFirstPage(config, charset);
+
+        Map<String, Object> requestForm;
         do {
-
-            if (!firstPage) {
-                requestForm = new HashMap<>();
-                requestForm.putAll(sessionForm);
-                requestForm.putAll(config.getQuery().getForm());
-                requestForm.put("__EVENTTARGET", pages.poll());
+            requestForm = new HashMap<>();
+            requestForm.putAll(sessionForm);
+            requestForm.putAll(querySettings);
+            requestForm.remove("Button1");
+            if (!pages.isEmpty()) {
+                requestForm.remove("SearchButton");
+                String toBePulledPage = pages.poll();
+                if (processedPage.contains(toBePulledPage)) {
+                    continue;
+                }
+                processedPage.add(toBePulledPage);
+                requestForm.put(EVENT_TARGET, toBePulledPage);
+                requestForm.put("__EVENTARGUMENT", "");
             }
 
-            String html = firstPage ?
-                    Utils.wget(config.getQuery().getUri().toURL(), charset) :
-                    Utils.syncRequest(config.getQuery().getUri(), requestForm, charset, secondsToProcessEachRecord);
-
-            html = Utils.cleanupHtmlTag(html, Utils.REPLACEMENT_HTML_TAG);
-            html = Utils.replaceEntities(html, Utils.getKnownEntities());
-            html = Utils.removeElement(html, "colgroup");
-
-            if (firstPage) {
-                OutputStream rawPages = Utils.simpleTransform(new ByteArrayInputStream(html.getBytes(charset)), config.getXslt("pages"));
-                pages.addAll(HutchensProcessor.collectHutchersPages(new InputStreamReader(new ByteArrayInputStream(rawPages.toString().getBytes(charset)))));
-
-                OutputStream rawForm = Utils.simpleTransform(new ByteArrayInputStream(html.getBytes(charset)), config.getXslt("requestform"));
-                sessionForm.putAll(HutchensProcessor.collectHutchersRequestForm(new InputStreamReader(new ByteArrayInputStream(rawForm.toString().getBytes(charset)))));
+            try {
+                logger.info("Sleeping for {} seconds", config.getQuery().getSleepSeconds());
+                Thread.sleep(config.getQuery().getSleepSeconds() * 1000);
+            } catch (InterruptedException e) {
+                logger.info("Thread sleep was interrupted");
             }
+            String html = scrubHtml(Utils.syncRequest(config.getQuery().getUri(), requestForm, charset, secondsToProcessEachRecord));
+
+            OutputStream rawForm = Utils.simpleTransform(new ByteArrayInputStream(html.getBytes(charset)), config.getXslt("requestform"));
+            sessionForm.putAll(HutchensProcessor.collectHutchersRequestForm(new InputStreamReader(new ByteArrayInputStream(rawForm.toString().getBytes(charset)))));
+
+            OutputStream rawPages = Utils.simpleTransform(new ByteArrayInputStream(html.getBytes(charset)), config.getXslt("pages"));
+            putFoundPages(HutchensProcessor.collectHutchersPages(new InputStreamReader(new ByteArrayInputStream(rawPages.toString().getBytes(charset)))));
 
             OutputStream rawCases = Utils.simpleTransform(new ByteArrayInputStream(html.getBytes(charset)), config.getXslt("cases"));
-            cases.addAll(HutchensProcessor.processHutchersCases(new InputStreamReader(new ByteArrayInputStream(rawCases.toString().getBytes(charset)))));
-            firstPage = false;
+            putFoundCases(HutchensProcessor.processHutchersCases(new InputStreamReader(new ByteArrayInputStream(rawCases.toString().getBytes(charset)))));
         } while (!pages.isEmpty());
-        return cases;
     }
 
 
-    List<CaseInformation> processFirstPage(SourceConfigSet.SourceConfig config, Charset charset) throws IOException, TransformerException, URISyntaxException {
-        List<CaseInformation> cases = new LinkedList<>();
-
-        String html = Utils.wget(config.getQuery().getUri().toURL(), charset);
-
-        html = Utils.cleanupHtmlTag(html, Utils.REPLACEMENT_HTML_TAG);
-        html = Utils.replaceEntities(html, Utils.getKnownEntities());
-        html = Utils.removeElement(html, "colgroup");
-
-        OutputStream rawPages = Utils.simpleTransform(new ByteArrayInputStream(html.getBytes(charset)), config.getXslt("pages"));
-        pages.addAll(HutchensProcessor.collectHutchersPages(new InputStreamReader(new ByteArrayInputStream(rawPages.toString().getBytes(charset)))));
+    void processFirstPage(SourceConfigSet.SourceConfig config, Charset charset) throws IOException, TransformerException, URISyntaxException {
+        String html = scrubHtml( Utils.wget(config.getQuery().getUri().toURL(), charset));
 
         OutputStream rawForm = Utils.simpleTransform(new ByteArrayInputStream(html.getBytes(charset)), config.getXslt("requestform"));
         sessionForm.putAll(HutchensProcessor.collectHutchersRequestForm(new InputStreamReader(new ByteArrayInputStream(rawForm.toString().getBytes(charset)))));
 
-        OutputStream rawCases = Utils.simpleTransform(new ByteArrayInputStream(html.getBytes(charset)), config.getXslt("cases"));
-        cases.addAll(HutchensProcessor.processHutchersCases(new InputStreamReader(new ByteArrayInputStream(rawCases.toString().getBytes(charset)))));
+        if (readAllCases) {
+            OutputStream rawPages = Utils.simpleTransform(new ByteArrayInputStream(html.getBytes(charset)), config.getXslt("pages"));
+            putFoundPages(HutchensProcessor.collectHutchersPages(new InputStreamReader(new ByteArrayInputStream(rawPages.toString().getBytes(charset)))));
 
-        return cases;
+            OutputStream rawCases = Utils.simpleTransform(new ByteArrayInputStream(html.getBytes(charset)), config.getXslt("cases"));
+            putFoundCases(HutchensProcessor.processHutchersCases(new InputStreamReader(new ByteArrayInputStream(rawCases.toString().getBytes(charset)))));
+        }
+    }
+
+    void identifyQuerySettings(Map<String, String> queryFormConfig) {
+        String searchText = queryFormConfig.get(SEARCH_TEXT_BOX);
+        searchText = searchText != null ? searchText : SEARCH_ANY_TEXT;
+        querySettings.put(SEARCH_TEXT_BOX, searchText);
+
+        String searchGroup = queryFormConfig.get(SEARCH_GROUP);
+        searchGroup = searchGroup != null ? searchGroup : SEARCH_ALL;
+        querySettings.put(SEARCH_GROUP, searchGroup);
+
+        if (SEARCH_ALL.equals(searchGroup) && SEARCH_ANY_TEXT.equals(searchText)) {
+            readAllCases = true;
+        }
+    }
+
+    String scrubHtml(String html) {
+        String tmp = Utils.cleanupHtmlTag(html, Utils.REPLACEMENT_HTML_TAG);
+        tmp = Utils.replaceEntities(tmp, Utils.getKnownEntities());
+        return Utils.removeElement(tmp, COL_GROUP_ELEMENT);
+    }
+
+    void putFoundCases(Collection<CaseInformation> items) {
+        for (CaseInformation item : items) {
+            cases.put(item.getCaseNumber(), item);
+        }
+    }
+
+    void putFoundPages(Collection<String> foundPages) {
+        for (String page : foundPages) {
+            if (processedPage.contains(page) || pages.contains(page)) {
+                continue;
+            }
+            pages.add(page);
+        }
     }
 
     public static Map<String, String> collectHutchersRequestForm(Reader input) throws IOException {

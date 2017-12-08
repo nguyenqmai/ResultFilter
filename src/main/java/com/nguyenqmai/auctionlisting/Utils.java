@@ -45,6 +45,7 @@ public class Utils {
         ret.put("&copy;", "");
         ret.put("&nbsp;", "");
         ret.put("width=", "\"width\"=");
+        ret.put("&", "");
         return ret;
     }
 

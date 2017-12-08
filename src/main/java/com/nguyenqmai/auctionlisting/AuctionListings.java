@@ -15,6 +15,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -50,7 +51,8 @@ public class AuctionListings {
             try {
                 if ("hutchens".equalsIgnoreCase(pair.getKey())) {
                     HutchensProcessor processor = new HutchensProcessor();
-                    List<CaseInformation> cases = processor.process(config, StandardCharsets.UTF_8, 5);
+                    processor.process(config, StandardCharsets.UTF_8, 5);
+                    Collection<CaseInformation> cases = processor.getCases();
                 }
             } catch (TransformerException | IOException | URISyntaxException e) {
                 logger.error("Bad transforming data from source {}", pair.getKey(), e);
