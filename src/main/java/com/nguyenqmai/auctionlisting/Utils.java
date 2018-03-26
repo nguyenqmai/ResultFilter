@@ -94,12 +94,17 @@ public class Utils {
     }
 
     public static String removeElement(String inputHtml, String tag) {
-        int startTag = inputHtml.indexOf("<"+tag);
-        if (startTag < 0) {
-            return inputHtml;
-        }
-        int closeOfStartTag = inputHtml.indexOf("</" + tag + ">", startTag);
-        return inputHtml.substring(0, startTag) + inputHtml.substring(closeOfStartTag + ("</" + tag + ">").length());
+        int startTag = -1;
+        String tmp = inputHtml;
+        do {
+            startTag = tmp.indexOf("<" + tag);
+            if (startTag < 0) {
+                return tmp;
+            }
+            int closeOfStartTag = tmp.indexOf("</" + tag + ">", startTag);
+            tmp = tmp.substring(0, startTag) + tmp.substring(closeOfStartTag + ("</" + tag + ">").length());
+        } while (startTag >= 0);
+        return tmp;
     }
 
     public static String replaceEntities(String input, Map<String, String> entities) {

@@ -25,6 +25,8 @@ public class HutchensProcessor {
     static final String SEARCH_GROUP = "SearchGroup";
     static final String EVENT_TARGET = "__EVENTTARGET";
     static final String COL_GROUP_ELEMENT = "colgroup";
+    static final String SCRIPT_ELEMENT = "script";
+    static final String[] STRIP_ELEMENTS = {COL_GROUP_ELEMENT, SCRIPT_ELEMENT};
 
 
 
@@ -112,7 +114,10 @@ public class HutchensProcessor {
     String scrubHtml(String html) {
         String tmp = Utils.cleanupHtmlTag(html, Utils.REPLACEMENT_HTML_TAG);
         tmp = Utils.replaceEntities(tmp, Utils.getKnownEntities());
-        return Utils.removeElement(tmp, COL_GROUP_ELEMENT);
+        for (String element : STRIP_ELEMENTS) {
+            tmp = Utils.removeElement(tmp, element);
+        }
+        return tmp;
     }
 
     void putFoundCases(Collection<CaseInformation> items) {

@@ -53,6 +53,7 @@ public class AuctionListings {
                     HutchensProcessor processor = new HutchensProcessor();
                     processor.process(config, StandardCharsets.UTF_8, 5);
                     Collection<CaseInformation> cases = processor.getCases();
+                    String tmp = "123";
                 }
             } catch (TransformerException | IOException | URISyntaxException e) {
                 logger.error("Bad transforming data from source {}", pair.getKey(), e);

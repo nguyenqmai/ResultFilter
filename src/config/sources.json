@@ -19,7 +19,7 @@
         "sleepSeconds": 20,
         "method": "POST",
         "form": {
-          "SearchTextBox": "Gaston",
+          "SearchTextBox": "Mecklenburg",
 //          "SearchGroup": "AllRadio"
           "SearchGroup": "CountyRadio"
 //          "SearchGroup": "PropertyAddressRadio"
@@ -30,9 +30,9 @@
           }
       },
       "xslts": {
-        "pages": "C:/workspaces/IntelliJ-workspace/Auction-filtering/src/xslt/hutchens-pages.xslt",
-        "requestform": "C:/workspaces/IntelliJ-workspace/Auction-filtering/src/xslt/hutchens-requestform.xslt",
-        "cases": "C:/workspaces/IntelliJ-workspace/Auction-filtering/src/xslt/hutchens-cases.xslt"
+        "pages": "e:/workspaces/IntelliJ-workspace/Auction-filtering/src/xslt/hutchens-pages.xslt",
+        "requestform": "e:/workspaces/IntelliJ-workspace/Auction-filtering/src/xslt/hutchens-requestform.xslt",
+        "cases": "e:/workspaces/IntelliJ-workspace/Auction-filtering/src/xslt/hutchens-cases.xslt"
       }
     }
   }
